@@ -282,7 +282,3 @@ Public IP Address of Deployed Container: 54.183.166.190
 
 1. Run `aws-ecs-setup.sh` once to set up the AWS infrastructure and deploy the application.
 2. Use `continuous-deploy.sh` to build, push, and deploy updates to ECS.
-
----
-
-Let me know if you encounter any issues or need further assistance!
