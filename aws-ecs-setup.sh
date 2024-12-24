@@ -276,3 +276,41 @@ else
 fi
 
 echo "ECS service and task created successfully."
+
+# Get the task ARN
+TASK_ARN=$(aws ecs list-tasks --cluster $CLUSTER_NAME \
+    --service-name $SERVICE_NAME \
+    --region $REGION \
+    --query "taskArns[0]" --output text)
+
+if [ "$TASK_ARN" == "None" ] || [ -z "$TASK_ARN" ]; then
+    echo "Error: No task found for service $SERVICE_NAME in cluster $CLUSTER_NAME."
+    exit 1
+fi
+
+echo "Task ARN: $TASK_ARN"
+
+# Get the ENI attached to the task
+ENI_ID=$(aws ecs describe-tasks --cluster $CLUSTER_NAME \
+    --tasks $TASK_ARN \
+    --region $REGION \
+    --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value" --output text)
+
+if [ "$ENI_ID" == "None" ] || [ -z "$ENI_ID" ]; then
+    echo "Error: No ENI found for task $TASK_ARN."
+    exit 1
+fi
+
+echo "ENI ID: $ENI_ID"
+
+# Get the public IP address of the ENI
+PUBLIC_IP=$(aws ec2 describe-network-interfaces --network-interface-ids $ENI_ID \
+    --region $REGION \
+    --query "NetworkInterfaces[0].Association.PublicIp" --output text)
+
+if [ "$PUBLIC_IP" == "None" ] || [ -z "$PUBLIC_IP" ]; then
+    echo "Error: No public IP associated with ENI $ENI_ID."
+    exit 1
+fi
+
+echo "Public IP Address of Deployed Container: $PUBLIC_IP"
