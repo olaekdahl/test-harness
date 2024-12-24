@@ -178,7 +178,7 @@ echo "Checking if CloudWatch log group '$LOG_GROUP_NAME' exists..."
 LOG_GROUP_CHECK=$(aws logs describe-log-groups --log-group-name-prefix $LOG_GROUP_NAME \
 --region $REGION --output text --query 'logGroups[0].logGroupName' 2>/dev/null)
 
-if [ -z "$LOG_GROUP_CHECK" ]; then
+if [ -z "$LOG_GROUP_CHECK" ] || [ "$LOG_GROUP_CHECK" == "None" ]; then
     echo "Creating CloudWatch log group..."
     aws logs create-log-group --log-group-name $LOG_GROUP_NAME \
     --region $REGION > /dev/null
