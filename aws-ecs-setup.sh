@@ -5,12 +5,12 @@
 # Set variables
 DOCKER_FILE="Dockerfile.python"
 REGION="us-west-1"
-NAME="edp"
+NAME="python"
 CLUSTER_NAME="$NAME-cluster"
 SERVICE_NAME="$NAME-service"
 TASK_DEFINITION_NAME="$NAME-task"
-ECR_REPO_NAME="$NAME-people-picker"
-CONTAINER_NAME="$NAME-people-picker"
+ECR_REPO_NAME="$NAME-registry"
+CONTAINER_NAME="$NAME-test-harness"
 LOG_GROUP_NAME="/ecs/$NAME"
 
 # Update this
@@ -146,7 +146,7 @@ docker login --username AWS --password-stdin $ECR_URI
 
 # Build Docker image
 echo "Building Docker image..."
-docker build -t $CONTAINER_NAME:$IMAGE_TAG $DOCKER_FILE
+docker build --pull --rm -f "$DOCKER_FILE" -t $CONTAINER_NAME:$IMAGE_TAG
 
 # Tag and push Docker image to ECR
 echo "Tagging and pushing Docker image to ECR..."
