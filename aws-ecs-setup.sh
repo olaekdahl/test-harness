@@ -277,30 +277,30 @@ fi
 
 echo "ECS service and task created successfully."
 
-# Wait for the task to be created and retrieve the ARN
-echo "Waiting for the ECS task to start..."
+# Wait for the task to reach RUNNING state
+echo "Waiting for ECS task to reach RUNNING state..."
 
 MAX_ATTEMPTS=60  # 5 minutes (60 attempts * 5 seconds)
 ATTEMPT=0
 
 while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
-    TASK_ARN=$(aws ecs list-tasks --cluster $CLUSTER_NAME \
-        --service-name $SERVICE_NAME \
+    TASK_STATUS=$(aws ecs describe-tasks --cluster $CLUSTER_NAME \
+        --tasks $TASK_ARN \
         --region $REGION \
-        --query "taskArns[0]" --output text)
+        --query "tasks[0].lastStatus" --output text)
 
-    if [ "$TASK_ARN" != "None" ] && [ -n "$TASK_ARN" ]; then
-        echo "Task ARN found: $TASK_ARN"
+    if [ "$TASK_STATUS" == "RUNNING" ]; then
+        echo "Task is in RUNNING state."
         break
     fi
 
-    echo "Task not found. Retrying in 5 seconds..."
+    echo "Task status is '$TASK_STATUS'. Retrying in 5 seconds..."
     sleep 5
     ATTEMPT=$((ATTEMPT + 1))
 done
 
-if [ -z "$TASK_ARN" ] || [ "$TASK_ARN" == "None" ]; then
-    echo "Error: No task found for service $SERVICE_NAME in cluster $CLUSTER_NAME after 5 minutes."
+if [ "$TASK_STATUS" != "RUNNING" ]; then
+    echo "Error: Task did not reach RUNNING state after 5 minutes."
     exit 1
 fi
 
