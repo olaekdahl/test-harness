@@ -1,11 +1,11 @@
 {
-    "family": "edp-task",
+    "family": "python-task",
     "taskRoleArn": "arn:aws:iam::397188165174:role/ecsTaskRole",
     "executionRoleArn": "arn:aws:iam::397188165174:role/ecsTaskExecutionRole",
     "containerDefinitions": [
         {
-            "name": "edp-people-picker",
-            "image": "397188165174.dkr.ecr.us-west-1.amazonaws.com/edp-people-picker:846569d",
+            "name": "python-test-harness",
+            "image": "397188165174.dkr.ecr.us-west-1.amazonaws.com/python-registry:44cc098",
             "cpu": 1024,
             "memory": 4096,
             "portMappings": [
@@ -29,7 +29,7 @@
             "logConfiguration": {
                 "logDriver": "awslogs",
                 "options": {
-                    "awslogs-group": "/ecs/edp",
+                    "awslogs-group": "/ecs/python",
                     "awslogs-region": "us-west-1",
                     "awslogs-stream-prefix": "ecs"
                 }

@@ -3,6 +3,9 @@
 # Run this script once to setup the initial AWS infrastructure
 
 # Set variables
+
+# python, net, java, or node
+LANGUAGE="python"
 DOCKER_FILE="Dockerfile.python"
 REGION="us-west-1"
 NAME="python"
@@ -145,8 +148,11 @@ aws ecr get-login-password --region $REGION | \
 docker login --username AWS --password-stdin $ECR_URI
 
 # Build Docker image
+echo "DOCKER_FILE: $DOCKER_FILE"
+echo "CONTAINER_NAME: $CONTAINER_NAME"
+echo "IMAGE_TAG: $IMAGE_TAG"
 echo "Building Docker image..."
-docker build --pull --rm -f "$DOCKER_FILE" -t $CONTAINER_NAME:$IMAGE_TAG
+docker build --pull --rm -f "$DOCKER_FILE" -t $CONTAINER_NAME:$IMAGE_TAG ./$LANGUAGE
 
 # Tag and push Docker image to ECR
 echo "Tagging and pushing Docker image to ECR..."
