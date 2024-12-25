@@ -45,6 +45,16 @@ async def health_check():
         "message": "Application is running"
     }
 
+@app.get("/test", response_model=HealthCheckResponse)
+async def test():
+    """
+    Health check endpoint to verify the application is running.
+    """
+    return {
+        "status": "200",
+        "message": "test"
+    }
+
 @app.get("/users", response_model=List[User])
 async def read_users():
     """

@@ -231,7 +231,7 @@ TASK_DEF_JSON=$(cat <<EOF
         "FARGATE"
     ],
     "cpu": "1024",
-    "memory": "4096",
+    "memory": "2048",
     "networkMode": "awsvpc",
     "runtimePlatform": {
         "cpuArchitecture": "X86_64",
