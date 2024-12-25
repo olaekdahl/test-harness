@@ -5,14 +5,21 @@ LANGUAGE="python"
 DOCKER_FILE="Dockerfile.python"
 REGION="us-west-1"
 NAME="python"
+CONTAINER_PORT=8000
+HOST_PORT=8000
 
+CLUSTER_NAME="$NAME-cluster"
+SERVICE_NAME="$NAME-service"
 TASK_DEFINITION_NAME="$NAME-task"
 ECR_REPO_NAME="$NAME-registry"
 CONTAINER_NAME="$NAME-test-harness"
-IMAGE_TAG=$(git rev-parse --short HEAD)
+LOG_GROUP_NAME="/ecs/$NAME"
 
 # Get AWS Account ID
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+# Use Git commit hash as IMAGE_TAG
+IMAGE_TAG=$(git rev-parse --short HEAD)
 
 # Get ECR Repository URI
 ECR_URI=$(aws ecr describe-repositories --repository-names $ECR_REPO_NAME \
@@ -32,54 +39,62 @@ echo "Tagging and pushing Docker image to ECR..."
 docker tag $CONTAINER_NAME:$IMAGE_TAG $ECR_URI:$IMAGE_TAG
 docker push $ECR_URI:$IMAGE_TAG
 
-# Register new task definition with updated image
-echo "Registering new task definition..."
-NEW_TASK_DEF=$(aws ecs register-task-definition \
-    --family $TASK_DEFINITION_NAME \
-    --network-mode awsvpc \
-    --execution-role-arn "arn:aws:iam::$ACCOUNT_ID:role/ecsTaskExecutionRole" \
-    --task-role-arn "arn:aws:iam::$ACCOUNT_ID:role/ecsTaskRole" \
-    --container-definitions "[
+# Register a new ECS task definition
+echo "Registering new ECS task definition..."
+TASK_DEF_JSON=$(cat <<EOF
+{
+    "family": "$TASK_DEFINITION_NAME",
+    "taskRoleArn": "arn:aws:iam::$ACCOUNT_ID:role/ecsTaskRole",
+    "executionRoleArn": "arn:aws:iam::$ACCOUNT_ID:role/ecsTaskExecutionRole",
+    "containerDefinitions": [
         {
-            \"name\": \"$CONTAINER_NAME\",
-            \"image\": \"$ECR_URI:$IMAGE_TAG\",
-            \"cpu\": 256,
-            \"memory\": 512,
-            \"portMappings\": [
+            "name": "$CONTAINER_NAME",
+            "image": "$ECR_URI:$IMAGE_TAG",
+            "cpu": 1024,
+            "memory": 2048,
+            "portMappings": [
                 {
-                    \"containerPort\": 8000,
-                    \"hostPort\": 8000,
-                    \"protocol\": \"tcp\"
+                    "containerPort": $CONTAINER_PORT,
+                    "hostPort": $HOST_PORT,
+                    "protocol": "tcp"
                 }
             ],
-            \"essential\": true,
-            \"logConfiguration\": {
-                \"logDriver\": \"awslogs\",
-                \"options\": {
-                    \"awslogs-group\": \"/ecs/$NAME\",
-                    \"awslogs-region\": \"$REGION\",
-                    \"awslogs-stream-prefix\": \"ecs\"
+            "essential": true,
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "$LOG_GROUP_NAME",
+                    "awslogs-region": "$REGION",
+                    "awslogs-stream-prefix": "ecs"
                 }
             }
         }
-    ]" \
-    --requires-compatibilities FARGATE \
-    --cpu "1024" \
-    --memory "2048" \
-    --region $REGION)
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "1024",
+    "memory": "2048",
+    "networkMode": "awsvpc",
+    "runtimePlatform": {
+        "cpuArchitecture": "X86_64",
+        "operatingSystemFamily": "LINUX"
+    }
+}
+EOF
+)
 
+NEW_TASK_DEF=$(aws ecs register-task-definition --cli-input-json "$TASK_DEF_JSON" --region $REGION)
 TASK_DEFINITION_REVISION=$(echo $NEW_TASK_DEF | jq -r '.taskDefinition.taskDefinitionArn')
+
 echo "New task definition registered: $TASK_DEFINITION_REVISION"
 
-# Update ECS service with new task definition
-SERVICE_NAME="$NAME-service"
-CLUSTER_NAME="$NAME-cluster"
-TASK_DEFINITION_NAME="$NAME-task"
-
-echo "Updating ECS service with new image..."
+# Update ECS service with the new task definition
+echo "Updating ECS service with new task definition..."
 aws ecs update-service \
     --cluster $CLUSTER_NAME \
     --service $SERVICE_NAME \
+    --task-definition $TASK_DEFINITION_REVISION \
     --force-new-deployment \
     --region $REGION > /dev/null
 

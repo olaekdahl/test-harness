@@ -137,6 +137,8 @@ LANGUAGE=<match aws-ecs-setup.sh value>
 DOCKER_FILE=<match aws-ecs-setup.sh value>
 REGION=<match aws-ecs-setup.sh value>
 NAME=<match aws-ecs-setup.sh value>
+CONTAINER_PORT=<match aws-ecs-setup.sh value>
+HOST_PORT=<match aws-ecs-setup.sh value>
 ```
 
 3. Run the script:
