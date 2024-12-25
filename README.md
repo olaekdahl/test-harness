@@ -4,6 +4,7 @@ This repository contains two scripts for deploying and updating applications on 
 
 1. **`aws-ecs-setup.sh`**: Used to set up the initial AWS infrastructure and deploy the application for the first time.
 2. **`continuous-deploy.sh`**: Used to update the deployed application by building and pushing new Docker images.
+3. Use **`<language>/init.sql`** to seed Postgres database.
 
 ---
 
