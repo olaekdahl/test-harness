@@ -6,6 +6,7 @@ DOCKER_FILE="Dockerfile.python"
 REGION="us-west-1"
 NAME="python"
 
+TASK_DEFINITION_NAME="$NAME-task"
 ECR_REPO_NAME="$NAME-registry"
 CONTAINER_NAME="$NAME-test-harness"
 IMAGE_TAG=$(git rev-parse --short HEAD)
