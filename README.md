@@ -1,5 +1,7 @@
 # AWS ECS Deployment Scripts
 
+**_NOTE:_**  Only the Python example is working at the moment.
+
 This repository contains two scripts for deploying and updating applications on AWS ECS:
 
 1. **`aws-ecs-setup.sh`**: Used to set up the initial AWS infrastructure and deploy the application for the first time.
