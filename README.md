@@ -62,6 +62,10 @@ Before using the scripts, ensure the following tools are installed and configure
 
 ---
 
+### 3. Health Check
+
+Make sure your application has an endpoint at the root "/" in order for the ECS health check to work. The route can return anything and doesn't have to be a "real" route.
+
 ## Scripts Overview
 
 ### `aws-ecs-setup.sh`
@@ -82,7 +86,6 @@ Run this script **once** to set up the infrastructure and deploy the application
    ```bash
    chmod +x aws-ecs-setup.sh
    ```
-
 2. Update script variables:
 
 ```bash
@@ -99,7 +102,6 @@ HOST_PORT=<host port> # ex. 80 or 443
    ```bash
    ./aws-ecs-setup.sh
    ```
-
 4. The script outputs important information such as:
 
    - VPC ID
@@ -127,13 +129,11 @@ Run this script whenever you want to deploy a new version of the application.
    ```bash
    chmod +x continuous-deploy.sh
    ```
-
 2. Run the script:
 
    ```bash
    ./continuous-deploy.sh
    ```
-
 3. The script will:
 
    - Build the Docker image using the latest code.
