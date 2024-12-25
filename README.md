@@ -82,12 +82,25 @@ Run this script **once** to set up the infrastructure and deploy the application
    ```bash
    chmod +x aws-ecs-setup.sh
    ```
-2. Run the script:
+
+2. Update script variables:
+
+```bash
+LANGUAGE="<language>" # python, net, java, or node
+DOCKER_FILE="<dockerfile>" # ex. "Dockerfile.python"
+REGION=<aws region> #ex. "us-west-2"
+NAME=<name prefix> # ex. "python" but can be anything
+CONTAINER_PORT=<container port> # ex. 8000, 3001, etc.
+HOST_PORT=<host port> # ex. 80 or 443
+```
+
+3. Run the script:
 
    ```bash
    ./aws-ecs-setup.sh
    ```
-3. The script outputs important information such as:
+
+4. The script outputs important information such as:
 
    - VPC ID
    - Subnet ID
@@ -114,11 +127,13 @@ Run this script whenever you want to deploy a new version of the application.
    ```bash
    chmod +x continuous-deploy.sh
    ```
+
 2. Run the script:
 
    ```bash
    ./continuous-deploy.sh
    ```
+
 3. The script will:
 
    - Build the Docker image using the latest code.

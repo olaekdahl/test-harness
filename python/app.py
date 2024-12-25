@@ -22,6 +22,11 @@ class User(BaseModel):
     name: str
     email: str
 
+# Health check response model
+class HealthCheckResponse(BaseModel):
+    status: str
+    message: str
+
 # Database connection utility
 def get_db_connection():
     try:
@@ -30,8 +35,18 @@ def get_db_connection():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database connection error: {e}")
 
+@app.get("/", response_model=HealthCheckResponse)
+async def health_check():
+    """
+    Health check endpoint to verify the application is running.
+    """
+    return {
+        "status": "healthy",
+        "message": "Application is running"
+    }
+
 @app.get("/users", response_model=List[User])
-def read_users():
+async def read_users():
     """
     Fetch all users from the database.
     """
@@ -48,7 +63,7 @@ def read_users():
         conn.close()
 
 @app.get("/users/{user_id}", response_model=User)
-def read_user(user_id: int):
+async def read_user(user_id: int):
     """
     Fetch a single user by ID from the database.
     """

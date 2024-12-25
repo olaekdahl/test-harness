@@ -9,16 +9,15 @@ LANGUAGE="python"
 DOCKER_FILE="Dockerfile.python"
 REGION="us-west-1"
 NAME="python"
+CONTAINER_PORT=8000
+HOST_PORT=80
+
 CLUSTER_NAME="$NAME-cluster"
 SERVICE_NAME="$NAME-service"
 TASK_DEFINITION_NAME="$NAME-task"
 ECR_REPO_NAME="$NAME-registry"
 CONTAINER_NAME="$NAME-test-harness"
 LOG_GROUP_NAME="/ecs/$NAME"
-
-# Update this
-CONTAINER_PORT=8000
-HOST_PORT=8000
 
 # Get AWS Account ID
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
