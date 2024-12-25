@@ -94,7 +94,7 @@ DOCKER_FILE="<dockerfile>" # ex. "Dockerfile.python"
 REGION=<aws region> #ex. "us-west-2"
 NAME=<name prefix> # ex. "python" but can be anything
 CONTAINER_PORT=<container port> # ex. 8000, 3001, etc.
-HOST_PORT=<host port> # ex. 80 or 443
+HOST_PORT=<host port> # must match CONTAINER_PORT
 ```
 
 3. Run the script:
@@ -102,6 +102,7 @@ HOST_PORT=<host port> # ex. 80 or 443
    ```bash
    ./aws-ecs-setup.sh
    ```
+
 4. The script outputs important information such as:
 
    - VPC ID
@@ -129,12 +130,21 @@ Run this script whenever you want to deploy a new version of the application.
    ```bash
    chmod +x continuous-deploy.sh
    ```
-2. Run the script:
+2. Update script variables match aws-ecs-setup.sh variables:
+
+```bash
+LANGUAGE=<match aws-ecs-setup.sh value>
+DOCKER_FILE=<match aws-ecs-setup.sh value>
+REGION=<match aws-ecs-setup.sh value>
+NAME=<match aws-ecs-setup.sh value>
+```
+
+3. Run the script:
 
    ```bash
    ./continuous-deploy.sh
    ```
-3. The script will:
+4. The script will:
 
    - Build the Docker image using the latest code.
    - Push the new image to the ECR repository.

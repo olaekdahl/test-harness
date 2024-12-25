@@ -10,7 +10,7 @@ DOCKER_FILE="Dockerfile.python"
 REGION="us-west-1"
 NAME="python"
 CONTAINER_PORT=8000
-HOST_PORT=80
+HOST_PORT=8000
 
 CLUSTER_NAME="$NAME-cluster"
 SERVICE_NAME="$NAME-service"
