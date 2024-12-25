@@ -67,7 +67,7 @@ Before using the scripts, ensure the following tools are installed and configure
 
 ### 3. Health Check
 
-Make sure your application has an endpoint at the root "/" in order for the ECS health check to work. The route can return anything and doesn't have to be a "real" route.
+Make sure your application has an endpoint at this route "/api/health" in order for the ECS health check to work. The route can return anything and doesn't have to be a "real" route.
 
 ## Scripts Overview
 

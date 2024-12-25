@@ -6,9 +6,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/api")
 public class UserController {
 
     // @Autowired
@@ -21,21 +22,29 @@ public class UserController {
         return userRepository.save(user);
     }
 
+    @GetMapping("/health")
+    public Map<String, String> healthCheck() {
+        return Map.of(
+            "status", "healthy",
+            "message", "Application is running"
+        );
+    }
+
     // READ all Users
-    @GetMapping
-    public String getAllUsers() {
-        return "test";
+    @GetMapping("/users")
+    public List<User> getAllUsers() {
+        return userRepository.findAll();
     }
 
     // READ a single User by ID
-    @GetMapping("/{id}")
+    @GetMapping("/users/{id}")
     public User getUserById(@PathVariable Long id) {
         return userRepository.findById(id)
                              .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
     }
 
     // UPDATE a User
-    @PutMapping("/{id}")
+    @PutMapping("/users/{id}")
     public User updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
         User existingUser = userRepository.findById(id)
                              .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
@@ -47,7 +56,7 @@ public class UserController {
     }
 
     // DELETE a User
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/users/{id}")
     public String deleteUser(@PathVariable Long id) {
         userRepository.deleteById(id);
         return "User with ID " + id + " deleted successfully.";

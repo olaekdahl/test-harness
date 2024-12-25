@@ -35,7 +35,7 @@ def get_db_connection():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database connection error: {e}")
 
-@app.get("/", response_model=HealthCheckResponse)
+@app.get("/api/health", response_model=HealthCheckResponse)
 async def health_check():
     """
     Health check endpoint to verify the application is running.
@@ -55,7 +55,7 @@ async def test():
         "message": "test"
     }
 
-@app.get("/users", response_model=List[User])
+@app.get("/api/users", response_model=List[User])
 async def read_users():
     """
     Fetch all users from the database.
@@ -72,7 +72,7 @@ async def read_users():
     finally:
         conn.close()
 
-@app.get("/users/{user_id}", response_model=User)
+@app.get("/api/users/{user_id}", response_model=User)
 async def read_user(user_id: int):
     """
     Fetch a single user by ID from the database.

@@ -211,7 +211,7 @@ TASK_DEF_JSON=$(cat <<EOF
                 "retries": 3,
                 "command": [
                     "CMD-SHELL",
-                    "curl -f http://127.0.0.1:$HOST_PORT/ || exit 1"
+                    "curl -f http://127.0.0.1:$HOST_PORT/api/health || exit 1"
                 ],
                 "timeout": 5,
                 "interval": 30,
