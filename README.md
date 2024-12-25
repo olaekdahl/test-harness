@@ -89,6 +89,7 @@ Run this script **once** to set up the infrastructure and deploy the application
    ```bash
    chmod +x aws-ecs-setup.sh
    ```
+
 2. Update script variables:
 
 ```bash
@@ -113,6 +114,16 @@ HOST_PORT=<host port> # must match CONTAINER_PORT
    - ECS Cluster and Service Name
    - ECR Repository URI
    - Public IP Address of the deployed container
+
+5. Build Docker image locally:
+
+   ```bash
+   DOCKER_FILE="Dockerfile.java"
+   CONTAINER_NAME="testharness-java"
+   IMAGE_TAG="1.0.0"
+   LANGUAGE="java"
+   docker build --pull --rm -f "$DOCKER_FILE" -t $CONTAINER_NAME:$IMAGE_TAG ./$LANGUAGE
+   ```
 
 ---
 
