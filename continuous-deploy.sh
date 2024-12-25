@@ -25,6 +25,11 @@ IMAGE_TAG=$(git rev-parse --short HEAD)
 ECR_URI=$(aws ecr describe-repositories --repository-names $ECR_REPO_NAME \
 --region $REGION --query 'repositories[0].repositoryUri' --output text)
 
+if [ -z "$ECR_URI" ]; then
+    echo "Error: Failed to retrieve ECR repository URI for $ECR_REPO_NAME."
+    exit 1
+fi
+
 # Log in to ECR
 echo "Logging in to ECR..."
 aws ecr get-login-password --region $REGION | \
@@ -84,8 +89,18 @@ TASK_DEF_JSON=$(cat <<EOF
 EOF
 )
 
-NEW_TASK_DEF=$(aws ecs register-task-definition --cli-input-json "$TASK_DEF_JSON" --region $REGION)
+echo "$TASK_DEF_JSON" > task_definition.json
+NEW_TASK_DEF=$(aws ecs register-task-definition --cli-input-json file://task_definition.json --output json \
+--region $REGION)
+
+# Extract task definition ARN
 TASK_DEFINITION_REVISION=$(echo $NEW_TASK_DEF | jq -r '.taskDefinition.taskDefinitionArn')
+
+# Validate task definition registration
+if [ -z "$TASK_DEFINITION_REVISION" ]; then
+    echo "Error: Task definition registration failed. No task definition ARN returned."
+    exit 1
+fi
 
 echo "New task definition registered: $TASK_DEFINITION_REVISION"
 
