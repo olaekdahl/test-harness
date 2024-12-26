@@ -1,7 +1,5 @@
 # AWS ECS Deployment Scripts
 
-**_NOTE:_**  Only the Python example is working at the moment.
-
 This repository contains two scripts for deploying and updating applications on AWS ECS:
 
 1. **`aws-ecs-setup.sh`**: Used to set up the initial AWS infrastructure and deploy the application for the first time.
@@ -89,7 +87,6 @@ Run this script **once** to set up the infrastructure and deploy the application
    ```bash
    chmod +x aws-ecs-setup.sh
    ```
-
 2. Update script variables:
 
 ```bash
@@ -106,7 +103,6 @@ HOST_PORT=<host port> # must match CONTAINER_PORT
    ```bash
    ./aws-ecs-setup.sh
    ```
-
 4. The script outputs important information such as:
 
    - VPC ID
@@ -114,7 +110,6 @@ HOST_PORT=<host port> # must match CONTAINER_PORT
    - ECS Cluster and Service Name
    - ECR Repository URI
    - Public IP Address of the deployed container
-
 5. Build Docker image locally:
 
    ```bash

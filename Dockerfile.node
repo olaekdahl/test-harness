@@ -1,18 +1,43 @@
-FROM node
+# Use PostgreSQL 17 as the base image
+FROM postgres:17
 
-# Install CURL for ECS Helth Checks
-RUN apt-get update && apt-get install -y --no-install-recommends curl
+# Set PostgreSQL environment variables
+ENV POSTGRES_USER=postgres
+ENV POSTGRES_PASSWORD=postgres
+ENV POSTGRES_DB=users
 
-# Delete cached packages 
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+# Install Node.js
+RUN apt-get update && apt-get install -y \
+    curl \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Verify installations
+RUN node --version && npm --version && psql --version
+
+# Copy the database initialization script (optional)
+WORKDIR /docker-entrypoint-initdb.d/
+COPY init.sql /docker-entrypoint-initdb.d/init.sql
+
+# Create a directory for the application
 WORKDIR /app
-COPY package*.json ./
-COPY client/ ./client
-COPY server/ ./server
-# COPY assets/ ./assets
 
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install Node.js dependencies
 RUN npm install
 
-EXPOSE 3001
-CMD ["node", "server/server.js"]
+# Copy the application code
+COPY . .
+
+# Expose and Node.js ports
+EXPOSE 5000
+
+# Add the entrypoint script
+COPY entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Use the entrypoint script to start both PostgreSQL and Node.js
+ENTRYPOINT ["entrypoint.sh"]
