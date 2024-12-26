@@ -5,12 +5,12 @@
 # Set variables
 
 # python, net, java, or node
-LANGUAGE="java"
-DOCKER_FILE="Dockerfile.java"
+LANGUAGE="net"
+DOCKER_FILE="Dockerfile.net"
 REGION="us-west-1"
-NAME="java"
-CONTAINER_PORT=8080
-HOST_PORT=8080
+NAME="net"
+CONTAINER_PORT=5000
+HOST_PORT=5000
 
 CLUSTER_NAME="$NAME-cluster"
 SERVICE_NAME="$NAME-service"
@@ -354,3 +354,4 @@ if [ "$PUBLIC_IP" == "None" ] || [ -z "$PUBLIC_IP" ]; then
 fi
 
 echo "Public IP Address of Deployed Container: $PUBLIC_IP"
+echo "Health Endpoint: http://$PUBLIC_IP:$HOST_PORT/api/health"
