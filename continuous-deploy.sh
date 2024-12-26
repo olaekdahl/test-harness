@@ -1,17 +1,17 @@
 #!/bin/bash
 
 # Set variables
-LANGUAGE="python"
-DOCKER_FILE="Dockerfile.python"
+LANGUAGE="node"
+DOCKER_FILE="Dockerfile.node"
 REGION="us-west-1"
-NAME="python"
-CONTAINER_PORT=8000
-HOST_PORT=8000
+NAME="node"
+CONTAINER_PORT=5000
+HOST_PORT=5000
 
 CLUSTER_NAME="$NAME-cluster"
 SERVICE_NAME="$NAME-service"
 TASK_DEFINITION_NAME="$NAME-task"
-ECR_REPO_NAME="$NAME-registry"
+ECR_REPO_NAME="$NAME-repository"
 CONTAINER_NAME="$NAME-test-harness"
 LOG_GROUP_NAME="/ecs/$NAME"
 

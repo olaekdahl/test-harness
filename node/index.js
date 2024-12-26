@@ -26,6 +26,7 @@ app.get('/api/health', (req, res) => {
     res.status(200).json({
         status: 'healthy',
         message: 'Application is running',
+        code: '200'
     });
 });
 
