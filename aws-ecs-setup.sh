@@ -5,17 +5,17 @@
 # Set variables
 
 # python, net, java, or node
-LANGUAGE="python"
-DOCKER_FILE="Dockerfile.python"
+LANGUAGE="java"
+DOCKER_FILE="Dockerfile.java"
 REGION="us-west-1"
-NAME="python"
-CONTAINER_PORT=8000
-HOST_PORT=8000
+NAME="java"
+CONTAINER_PORT=8080
+HOST_PORT=8080
 
 CLUSTER_NAME="$NAME-cluster"
 SERVICE_NAME="$NAME-service"
 TASK_DEFINITION_NAME="$NAME-task"
-ECR_REPO_NAME="$NAME-registry"
+ECR_REPO_NAME="$NAME-repository"
 CONTAINER_NAME="$NAME-test-harness"
 LOG_GROUP_NAME="/ecs/$NAME"
 
@@ -198,7 +198,7 @@ TASK_DEF_JSON=$(cat <<EOF
             "name": "$CONTAINER_NAME",
             "image": "$ECR_URI:$IMAGE_TAG",
             "cpu": 1024,
-            "memory": 4096,
+            "memory": 2048,
             "portMappings": [
                 {
                     "containerPort": $CONTAINER_PORT,

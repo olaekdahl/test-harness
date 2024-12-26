@@ -2,7 +2,6 @@ package com.example.demo.controller;
 
 import com.example.demo.model.User;
 import com.example.demo.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,8 +11,12 @@ import java.util.Map;
 @RequestMapping("/api")
 public class UserController {
 
-    // @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+
+    // Constructor injection ensures userRepository is never null
+    public UserController(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     // CREATE a new User
     // Example JSON: { "name": "John Doe", "email": "john@example.com" }
