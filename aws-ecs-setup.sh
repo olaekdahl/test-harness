@@ -290,6 +290,7 @@ echo "ECS service and task created successfully."
 echo "Waiting for ECS task to start..."
 MAX_ATTEMPTS=60
 ATTEMPT=0
+DELAY=5
 
 while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
     TASK_ARN=$(aws ecs list-tasks --cluster $CLUSTER_NAME \
@@ -302,8 +303,8 @@ while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
         break
     fi
 
-    echo "Task not found. Retrying in 5 seconds..."
-    sleep 5
+    echo "Task not found. Retrying in $DELAY seconds..."
+    sleep $DELAY
     ATTEMPT=$((ATTEMPT + 1))
 done
 
@@ -317,6 +318,7 @@ echo "Waiting for ECS task to reach RUNNING state..."
 
 MAX_ATTEMPTS=60  # 5 minutes (60 attempts * 5 seconds)
 ATTEMPT=0
+DELAY=5
 
 while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
     TASK_STATUS=$(aws ecs describe-tasks --cluster $CLUSTER_NAME \
@@ -329,8 +331,8 @@ while [ "$ATTEMPT" -lt "$MAX_ATTEMPTS" ]; do
         break
     fi
 
-    echo "Task status is '$TASK_STATUS'. Retrying in 5 seconds..."
-    sleep 5
+    echo "Task status is '$TASK_STATUS'. Retrying in $DELAY seconds..."
+    sleep $DELAY
     ATTEMPT=$((ATTEMPT + 1))
 done
 
