@@ -314,6 +314,37 @@ ENI ID: eni-0ec329c8b17a991e3
 Public IP Address of Deployed Container: 54.183.166.190
 ```
 
+## Run multi-container deployment
+
+### Step 1: Navigate to the Project Directory
+
+Ensure you are in the root directory of the project where the `docker-compose.yaml` file is located:
+
+```bash
+cd multi-container-deployment
+```
+
+### Step 2: Start the Services
+
+Run the following command to start all services defined in the `docker-compose.yaml` file:
+
+```bash
+docker-compose up --build
+```
+
+This will:
+
+- Build Docker images for each service if they don’t already exist.
+- Create and start containers for PostgreSQL, the .NET Web API, and the React UI.
+- Stream logs for all running containers to the terminal.
+
+### Step 3: Access the Application
+
+Once all containers are up and running, access the application components at the following URLs:
+
+- **React UI**: [http://localhost:3000](http://localhost:3000)
+- **.NET Web API**: [http://localhost:8080/api/users](http://localhost:5000/api/users)
+
 ## Summary
 
 1. Run `aws-ecs-setup.sh` once to set up the AWS infrastructure and deploy the application.

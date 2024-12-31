@@ -252,8 +252,8 @@ TASK_DEF_JSON=$(cat <<EOF
 EOF
 )
 
-echo "$TASK_DEF_JSON" > task_definition.json
-aws ecs register-task-definition --cli-input-json file://task_definition.json \
+echo "$TASK_DEF_JSON" > task-definition.json
+aws ecs register-task-definition --cli-input-json file://task-definition.json \
 --region $REGION > /dev/null
 
 # Create ECS service if it doesn't exist

@@ -1,0 +1,34 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgres:17
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: users
+    volumes:
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
+  dotnet-api:
+    build: ./docker/dotnet-api
+    container_name: dotnet-api
+    restart: always
+    depends_on:
+      - postgres
+    ports:
+      - "8080:8080"
+
+  react-ui:
+    build: ./docker/react-ui
+    container_name: react-ui
+    restart: always
+    depends_on:
+      - dotnet-api
+    ports:
+      - "80:80"
+    environment:
+      REACT_APP_API_URL: "http://dotnet-api:8080"
