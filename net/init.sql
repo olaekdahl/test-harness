@@ -1,13 +1,5 @@
--- Check if the users database exists and create it if it doesn't
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT FROM pg_database WHERE datname = 'users'
-    ) THEN
-        CREATE DATABASE users;
-    END IF;
-END
-$$;
+
+CREATE DATABASE users;
 
 -- Connect to the users database
 \c users;

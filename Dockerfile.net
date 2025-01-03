@@ -1,29 +1,29 @@
-# Use PostgreSQL 17 as the base image
-FROM postgres:17
+# Use .NET 9 as the base image
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
+
+# Install PostgreSQL 15
+RUN apt-get update && apt-get install -y \
+    postgresql-15 && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set PostgreSQL environment variables
-ENV POSTGRES_USER=postgres
-ENV POSTGRES_PASSWORD=postgres
-ENV POSTGRES_DB=users
+ENV POSTGRES_USER=postgres \
+    POSTGRES_PASSWORD=postgres \
+    POSTGRES_DB=users
 
-# Install prerequisites and .NET 8
-RUN apt-get update && apt-get install -y \
-    wget \
-    curl \
-    gnupg \
-    && wget https://packages.microsoft.com/config/debian/11/packages-microsoft-prod.deb \
-    && dpkg -i packages-microsoft-prod.deb \
-    && apt-get update \
-    && apt-get install -y \
-    aspnetcore-runtime-8.0 \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+# Copy docker-entrypoint.sh from PostgreSQL source
+ADD https://raw.githubusercontent.com/docker-library/postgres/master/docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Verify .NET installation
-RUN dotnet --info
+# Create custom-init-scripts directory
+RUN mkdir -p /init-scripts
 
-# Copy the database initialization script (optional)
-WORKDIR /docker-entrypoint-initdb.d/
-COPY init.sql /docker-entrypoint-initdb.d/init.sql
+# Copy the database initialization script to the directory
+# This will run in entrypoint.sh
+COPY init.sql /init-scripts/init.sql
+
+# Copy custom pg_hba.conf to PostgreSQL configuration directory
+COPY pg_hba.conf /etc/postgresql/15/main/pg_hba.conf
 
 # Create a directory for the .NET application
 WORKDIR /app
