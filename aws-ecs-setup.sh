@@ -11,6 +11,8 @@ EOF
 
 printf "\n\n"
 
+set -e
+
 # Run this script once to setup the initial AWS infrastructure
 
 # Set variables

@@ -1,5 +1,16 @@
 #!/bin/bash
 
+cat << "EOF"
+  ______ _____  _____   _______ ______  _____ _______   _    _          _____  _   _ ______  _____ _____ 
+ |  ____/ ____|/ ____| |__   __|  ____|/ ____|__   __| | |  | |   /\   |  __ \| \ | |  ____|/ ____/ ____|
+ | |__ | |    | (___      | |  | |__  | (___    | |    | |__| |  /  \  | |__) |  \| | |__  | (___| (___  
+ |  __|| |     \___ \     | |  |  __|  \___ \   | |    |  __  | / /\ \ |  _  /| . ` |  __|  \___ \\___ \ 
+ | |___| |____ ____) |    | |  | |____ ____) |  | |    | |  | |/ ____ \| | \ \| |\  | |____ ____) |___) |
+ |______\_____|_____/     |_|  |______|_____/   |_|    |_|  |_/_/    \_\_|  \_\_| \_|______|_____/_____/ 
+EOF
+
+printf "\n\n"
+
 set -e
 
 # Configuration Variables
@@ -32,12 +43,22 @@ echo "VPC ID: $VPC_ID"
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID --enable-dns-support "{\"Value\":true}" --region $REGION
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID --enable-dns-hostnames "{\"Value\":true}" --region $REGION
 
-# Create Subnet
-echo "Creating Subnet..."
-SUBNET_JSON=$(aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block 10.0.1.0/24 \
---region $REGION --output json)
-SUBNET_ID=$(echo $SUBNET_JSON | jq -r '.Subnet.SubnetId')
-echo "Subnet ID: $SUBNET_ID"
+# Get available AZs
+AZS=($(aws ec2 describe-availability-zones --region $REGION --query "AvailabilityZones[*].ZoneName" --output text))
+AZ1=${AZS[0]}
+AZ2=${AZS[1]}
+
+# Create Subnet 1 in AZ1
+echo "Creating Subnet in $AZ1..."
+SUBNET1_JSON=$(aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block 10.0.1.0/24 --availability-zone $AZ1 --region $REGION --output json)
+SUBNET_ID1=$(echo $SUBNET1_JSON | jq -r '.Subnet.SubnetId')
+echo "Subnet 1 ID: $SUBNET_ID1"
+
+# Create Subnet 2 in AZ2
+echo "Creating Subnet in $AZ2..."
+SUBNET2_JSON=$(aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block 10.0.2.0/24 --availability-zone $AZ2 --region $REGION --output json)
+SUBNET_ID2=$(echo $SUBNET2_JSON | jq -r '.Subnet.SubnetId')
+echo "Subnet 2 ID: $SUBNET_ID2"
 
 # Create Internet Gateway
 echo "Creating Internet Gateway..."
@@ -62,15 +83,18 @@ aws ec2 create-route --route-table-id $ROUTE_TABLE_ID \
 --destination-cidr-block 0.0.0.0/0 --gateway-id $IGW_ID \
 --region $REGION > /dev/null
 
-# Associate Route Table with Subnet
-echo "Associating Route Table with Subnet..."
+# Associate Route Table with Subnets
+echo "Associating Route Table with Subnets..."
 aws ec2 associate-route-table --route-table-id $ROUTE_TABLE_ID \
---subnet-id $SUBNET_ID --region $REGION > /dev/null
+--subnet-id $SUBNET_ID1 --region $REGION > /dev/null
 
-# Modify Subnet to assign public IPs
-echo "Modifying Subnet to assign public IPs..."
-aws ec2 modify-subnet-attribute --subnet-id $SUBNET_ID \
---map-public-ip-on-launch --region $REGION
+aws ec2 associate-route-table --route-table-id $ROUTE_TABLE_ID \
+--subnet-id $SUBNET_ID2 --region $REGION > /dev/null
+
+# Modify Subnets to assign public IPs
+echo "Modifying Subnets to assign public IPs..."
+aws ec2 modify-subnet-attribute --subnet-id $SUBNET_ID1 --map-public-ip-on-launch --region $REGION
+aws ec2 modify-subnet-attribute --subnet-id $SUBNET_ID2 --map-public-ip-on-launch --region $REGION
 
 # Create Security Group
 echo "Creating Security Group..."
@@ -82,7 +106,7 @@ echo "Security Group ID: $SECURITY_GROUP_ID"
 
 # Authorize inbound traffic on all necessary ports
 echo "Authorizing inbound traffic..."
-for PORT in $POSTGRES_PORT $API_PORT $UI_PORT; do
+for PORT in $API_PORT $UI_PORT; do
     aws ec2 authorize-security-group-ingress --group-id $SECURITY_GROUP_ID \
     --protocol tcp --port $PORT --cidr 0.0.0.0/0 --region $REGION > /dev/null
 done
@@ -152,10 +176,64 @@ aws iam attach-role-policy --role-name $EXECUTION_ROLE_NAME \
     --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy \
     --region $REGION > /dev/null
 
+# Create Load Balancer
+echo "Creating Application Load Balancer..."
+ALB_ARN=$(aws elbv2 create-load-balancer \
+    --name ecs-load-balancer \
+    --subnets $SUBNET_ID1 $SUBNET_ID2 \
+    --security-groups $SECURITY_GROUP_ID \
+    --region $REGION \
+    --query "LoadBalancers[0].LoadBalancerArn" --output text)
+
+ALB_DNS_NAME=$(aws elbv2 describe-load-balancers \
+    --load-balancer-arns $ALB_ARN \
+    --region $REGION \
+    --query "LoadBalancers[0].DNSName" --output text)
+
+echo "ALB DNS Name: $ALB_DNS_NAME"
+
+# Create Target Groups for API and UI
+echo "Creating Target Groups..."
+API_TARGET_GROUP_ARN=$(aws elbv2 create-target-group \
+    --name api-target-group \
+    --protocol HTTP \
+    --port $API_PORT \
+    --vpc-id $VPC_ID \
+    --target-type ip \
+    --region $REGION \
+    --query "TargetGroups[0].TargetGroupArn" --output text)
+
+UI_TARGET_GROUP_ARN=$(aws elbv2 create-target-group \
+    --name ui-target-group \
+    --protocol HTTP \
+    --port $UI_PORT \
+    --vpc-id $VPC_ID \
+    --target-type ip \
+    --region $REGION \
+    --query "TargetGroups[0].TargetGroupArn" --output text)
+
+# Create Listener for the API Target Group
+echo "Creating Listener for API Target Group..."
+aws elbv2 create-listener \
+    --load-balancer-arn $ALB_ARN \
+    --protocol HTTP \
+    --port $API_PORT \
+    --default-actions Type=forward,TargetGroupArn=$API_TARGET_GROUP_ARN \
+    --region $REGION > /dev/null
+
+# Create Listener for the UI Target Group
+echo "Creating Listener for UI Target Group..."
+aws elbv2 create-listener \
+    --load-balancer-arn $ALB_ARN \
+    --protocol HTTP \
+    --port $UI_PORT \
+    --default-actions Type=forward,TargetGroupArn=$UI_TARGET_GROUP_ARN \
+    --region $REGION > /dev/null
+
 # Build and Push Docker Images
 echo "Building and Pushing Docker Images..."
 
-# This is not necessary since only one image is being built. 
+# The for loop is not necessary since only one image is being built. 
 # Keeping it as a reference for building multiple images  
 
 # for SERVICE in "api" "ui"; do
@@ -172,8 +250,8 @@ done
 # Build and Push the UI Image with VITE_API_URL
 ECR_URI=$(aws ecr describe-repositories --repository-names "ui" --region $REGION --query "repositories[0].repositoryUri" --output text 2>/dev/null || aws ecr create-repository --repository-name "ui" --region $REGION --query "repository.repositoryUri" --output text)
 echo "Building ui image with VITE_API_URL..."
-# docker build --build-arg VITE_API_URL=http://api:$API_PORT -t ui ./docker/ui
-docker build -t ui ./docker/ui
+docker build --build-arg VITE_API_URL=http://$ALB_DNS_NAME:$API_PORT -t ui ./docker/ui
+# docker build -t ui ./docker/ui
 
 echo "Pushing UI image to $ECR_URI..."
 docker tag ui:latest $ECR_URI:$IMAGE_TAG
@@ -323,11 +401,10 @@ aws ecs create-service \
     --task-definition $TASK_DEFINITION_NAME \
     --desired-count 1 \
     --launch-type FARGATE \
-    --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_ID],securityGroups=[$SECURITY_GROUP_ID],assignPublicIp=ENABLED}" \
+    --load-balancers "targetGroupArn=$API_TARGET_GROUP_ARN,containerName=api,containerPort=$API_PORT" \
+                     "targetGroupArn=$UI_TARGET_GROUP_ARN,containerName=ui,containerPort=$UI_PORT" \
+    --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_ID1,$SUBNET_ID2],securityGroups=[$SECURITY_GROUP_ID],assignPublicIp=ENABLED}" \
     --region $REGION > /dev/null
-
-# Output Service Information
-echo "Deployment Complete."
 
 # Get the Public IP for the UI Service
 echo "Waiting for ECS task to start..."
@@ -407,5 +484,7 @@ if [ "$PUBLIC_IP" == "None" ] || [ -z "$PUBLIC_IP" ]; then
     exit 1
 fi
 
+echo "Deployment Complete."
+echo "API Endpoint: http://$ALB_DNS_NAME:$API_PORT/api/health"
 echo "Public IP Address of UI Service: $PUBLIC_IP"
-echo "UI Endpoint: http://$PUBLIC_IP:$UI_PORT"
+echo "UI Endpoint: http://$ALB_DNS_NAME:$UI_PORT"
