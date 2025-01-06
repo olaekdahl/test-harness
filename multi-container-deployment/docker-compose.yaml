@@ -21,6 +21,10 @@ services:
       - postgres
     ports:
       - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    volumes:
+      - ./docker/api/appsettings.Development.json:/app/appsettings.Development.json
 
   ui:
     build: ./docker/ui
