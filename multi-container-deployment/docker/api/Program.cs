@@ -8,7 +8,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.WithOrigins("http://localhost", "http://localhost:80", "http://react-ui")
+        policy.WithOrigins("*")
               .AllowAnyMethod()
               .AllowAnyHeader();
     });

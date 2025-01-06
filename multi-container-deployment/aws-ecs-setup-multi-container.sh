@@ -154,7 +154,12 @@ aws iam attach-role-policy --role-name $EXECUTION_ROLE_NAME \
 
 # Build and Push Docker Images
 echo "Building and Pushing Docker Images..."
-for SERVICE in "api" "ui"; do
+
+# This is not necessary since only one image is being built. 
+# Keeping it as a reference for building multiple images  
+
+# for SERVICE in "api" "ui"; do
+for SERVICE in "api"; do
     echo "Building $SERVICE image..."
     docker build -t $SERVICE ./docker/$SERVICE
     ECR_URI=$(aws ecr describe-repositories --repository-names $SERVICE --region $REGION --query "repositories[0].repositoryUri" --output text 2>/dev/null || aws ecr create-repository --repository-name $SERVICE --region $REGION --query "repository.repositoryUri" --output text)
@@ -163,6 +168,17 @@ for SERVICE in "api" "ui"; do
     aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_URI
     docker push $ECR_URI:$IMAGE_TAG
 done
+
+# Build and Push the UI Image with VITE_API_URL
+ECR_URI=$(aws ecr describe-repositories --repository-names "ui" --region $REGION --query "repositories[0].repositoryUri" --output text 2>/dev/null || aws ecr create-repository --repository-name "ui" --region $REGION --query "repository.repositoryUri" --output text)
+echo "Building ui image with VITE_API_URL..."
+# docker build --build-arg VITE_API_URL=http://api:$API_PORT -t ui ./docker/ui
+docker build -t ui ./docker/ui
+
+echo "Pushing UI image to $ECR_URI..."
+docker tag ui:latest $ECR_URI:$IMAGE_TAG
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_URI
+docker push $ECR_URI:$IMAGE_TAG
 
 # Copy init.sql to a temporary build context for Postgres
 echo "Preparing Postgres init script..."
@@ -195,14 +211,30 @@ else
     echo "ECS cluster '$CLUSTER_NAME' already exists."
 fi
 
+
+# Create CloudWatch log group if it doesn't exist
+LOG_GROUP_NAME="/ecs/$TASK_DEFINITION_NAME"
+echo "Checking if CloudWatch log group '$LOG_GROUP_NAME' exists..."
+LOG_GROUP_CHECK=$(aws logs describe-log-groups --log-group-name-prefix $LOG_GROUP_NAME \
+--region $REGION --output text --query 'logGroups[0].logGroupName' 2>/dev/null)
+
+if [ -z "$LOG_GROUP_CHECK" ] || [ "$LOG_GROUP_CHECK" == "None" ]; then
+    echo "Creating CloudWatch log group..."
+    aws logs create-log-group --log-group-name $LOG_GROUP_NAME \
+    --region $REGION > /dev/null
+    echo "CloudWatch log group '$LOG_GROUP_NAME' created."
+else
+    echo "CloudWatch log group '$LOG_GROUP_NAME' already exists."
+fi
+
 # Task Definition JSON
 echo "Registering ECS Task Definition..."
 cat > task-definition.json <<EOF
 {
     "family": "$TASK_DEFINITION_NAME",
     "requiresCompatibilities": ["FARGATE"],
-    "cpu": "2048",
-    "memory": "4096",
+    "cpu": "1024",
+    "memory": "2048",
     "networkMode": "awsvpc",
     "taskRoleArn": "arn:aws:iam::$ACCOUNT_ID:role/$ROLE_NAME",
     "executionRoleArn": "arn:aws:iam::$ACCOUNT_ID:role/$EXECUTION_ROLE_NAME",
@@ -221,7 +253,15 @@ cat > task-definition.json <<EOF
                 {"name": "POSTGRES_USER", "value": "postgres"},
                 {"name": "POSTGRES_PASSWORD", "value": "postgres"},
                 {"name": "POSTGRES_DB", "value": "users"}
-            ]
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "$LOG_GROUP_NAME",
+                    "awslogs-region": "$REGION",
+                    "awslogs-stream-prefix": "postgres"
+                }
+            }
         },
         {
             "name": "api",
@@ -235,7 +275,15 @@ cat > task-definition.json <<EOF
             "essential": true,
             "dependsOn": [
                 {"containerName": "postgres", "condition": "START"}
-            ]
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "$LOG_GROUP_NAME",
+                    "awslogs-region": "$REGION",
+                    "awslogs-stream-prefix": "api"
+                }
+            }
         },
         {
             "name": "ui",
@@ -252,7 +300,15 @@ cat > task-definition.json <<EOF
             ],
             "dependsOn": [
                 {"containerName": "api", "condition": "START"}
-            ]
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "$LOG_GROUP_NAME",
+                    "awslogs-region": "$REGION",
+                    "awslogs-stream-prefix": "ui"
+                }
+            }
         }
     ]
 }
