@@ -13,8 +13,8 @@ services:
     ports:
       - "5432:5432"
 
-  dotnet-api:
-    build: ./docker/dotnet-api
+  api:
+    build: ./docker/api
     container_name: dotnet-api
     restart: always
     depends_on:
@@ -22,13 +22,11 @@ services:
     ports:
       - "8080:8080"
 
-  react-ui:
-    build: ./docker/react-ui
+  ui:
+    build: ./docker/ui
     container_name: react-ui
     restart: always
     depends_on:
-      - dotnet-api
+      - api
     ports:
       - "80:80"
-    environment:
-      REACT_APP_API_URL: "http://dotnet-api:8080"

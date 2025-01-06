@@ -1,36 +1,20 @@
 #!/bin/bash
 
-cat << "EOF"
-  ______ _____  _____   _______ ______  _____ _______   _    _          _____  _   _ ______  _____ _____ 
- |  ____/ ____|/ ____| |__   __|  ____|/ ____|__   __| | |  | |   /\   |  __ \| \ | |  ____|/ ____/ ____|
- | |__ | |    | (___      | |  | |__  | (___    | |    | |__| |  /  \  | |__) |  \| | |__  | (___| (___  
- |  __|| |     \___ \     | |  |  __|  \___ \   | |    |  __  | / /\ \ |  _  /| . ` |  __|  \___ \\___ \ 
- | |___| |____ ____) |    | |  | |____ ____) |  | |    | |  | |/ ____ \| | \ \| |\  | |____ ____) |___) |
- |______\_____|_____/     |_|  |______|_____/   |_|    |_|  |_/_/    \_\_|  \_\_| \_|______|_____/_____/ 
-EOF
+set -e
 
-printf "\n\n"
-
-# Run this script once to setup the initial AWS infrastructure
-
-# Set variables
-
-# python, net, java, or node
-LANGUAGE="net"
-DOCKER_FILE="Dockerfile.net"
+# Configuration Variables
 REGION="us-west-1"
-NAME="net"
-CONTAINER_PORT=5000
-HOST_PORT=5000
+CLUSTER_NAME="ecs-cluster"
+SERVICE_NAME="ecs-service"
+TASK_DEFINITION_NAME="ecs-task"
+POSTGRES_IMAGE="postgres:17"
+API_IMAGE="api:latest"
+UI_IMAGE="ui:latest"
+POSTGRES_PORT=5432
+API_PORT=8080
+UI_PORT=80
 
-CLUSTER_NAME="$NAME-cluster"
-SERVICE_NAME="$NAME-service"
-TASK_DEFINITION_NAME="$NAME-task"
-ECR_REPO_NAME="$NAME-repository"
-CONTAINER_NAME="$NAME-test-harness"
-LOG_GROUP_NAME="/ecs/$NAME"
-
-# Get AWS Account ID
+# AWS Account ID
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
 # Use Git commit hash as IMAGE_TAG
@@ -39,7 +23,7 @@ IMAGE_TAG=$(git rev-parse --short HEAD)
 # Create VPC
 echo "Creating VPC..."
 VPC_JSON=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 \
---tag-specifications "ResourceType=vpc,Tags=[{Key=Name,Value=$NAME-vpc}]" \
+--tag-specifications "ResourceType=vpc,Tags=[{Key=Name,Value=ecs-vpc}]" \
 --region $REGION --output json)
 VPC_ID=$(echo $VPC_JSON | jq -r '.Vpc.VpcId')
 echo "VPC ID: $VPC_ID"
@@ -52,8 +36,8 @@ aws ec2 modify-vpc-attribute --vpc-id $VPC_ID --enable-dns-hostnames "{\"Value\"
 echo "Creating Subnet..."
 SUBNET_JSON=$(aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block 10.0.1.0/24 \
 --region $REGION --output json)
-SUBNET_ID_1=$(echo $SUBNET_JSON | jq -r '.Subnet.SubnetId')
-echo "Subnet ID: $SUBNET_ID_1"
+SUBNET_ID=$(echo $SUBNET_JSON | jq -r '.Subnet.SubnetId')
+echo "Subnet ID: $SUBNET_ID"
 
 # Create Internet Gateway
 echo "Creating Internet Gateway..."
@@ -81,56 +65,37 @@ aws ec2 create-route --route-table-id $ROUTE_TABLE_ID \
 # Associate Route Table with Subnet
 echo "Associating Route Table with Subnet..."
 aws ec2 associate-route-table --route-table-id $ROUTE_TABLE_ID \
---subnet-id $SUBNET_ID_1 --region $REGION > /dev/null
+--subnet-id $SUBNET_ID --region $REGION > /dev/null
 
 # Modify Subnet to assign public IPs
 echo "Modifying Subnet to assign public IPs..."
-aws ec2 modify-subnet-attribute --subnet-id $SUBNET_ID_1 \
+aws ec2 modify-subnet-attribute --subnet-id $SUBNET_ID \
 --map-public-ip-on-launch --region $REGION
 
 # Create Security Group
 echo "Creating Security Group..."
-SECURITY_GROUP_JSON=$(aws ec2 create-security-group --group-name edp-sg \
---description "EDP Security Group" --vpc-id $VPC_ID \
+SECURITY_GROUP_JSON=$(aws ec2 create-security-group --group-name ecs-sg \
+--description "ECS Security Group" --vpc-id $VPC_ID \
 --region $REGION --output json)
 SECURITY_GROUP_ID=$(echo $SECURITY_GROUP_JSON | jq -r '.GroupId')
 echo "Security Group ID: $SECURITY_GROUP_ID"
 
-# Authorize inbound traffic on port $HOST_PORT
-echo "Authorizing inbound traffic on port $HOST_PORT..."
-aws ec2 authorize-security-group-ingress --group-id $SECURITY_GROUP_ID \
---protocol tcp --port $HOST_PORT --cidr 0.0.0.0/0 --region $REGION > /dev/null
+# Authorize inbound traffic on all necessary ports
+echo "Authorizing inbound traffic..."
+for PORT in $POSTGRES_PORT $API_PORT $UI_PORT; do
+    aws ec2 authorize-security-group-ingress --group-id $SECURITY_GROUP_ID \
+    --protocol tcp --port $PORT --cidr 0.0.0.0/0 --region $REGION > /dev/null
+done
 
-# Create ECR repository if it doesn't exist
-echo "Checking if ECR repository exists..."
-ECR_REPO_CHECK=$(aws ecr describe-repositories --repository-names $ECR_REPO_NAME \
---region $REGION --output text 2>/dev/null)
-
-if [ -z "$ECR_REPO_CHECK" ]; then
-    echo "Creating ECR repository..."
-    aws ecr create-repository --repository-name $ECR_REPO_NAME \
-    --region $REGION > /dev/null
-    echo "ECR repository '$ECR_REPO_NAME' created."
-else
-    echo "ECR repository '$ECR_REPO_NAME' already exists."
-fi
-
-# Get ECR repository URI
-ECR_URI=$(aws ecr describe-repositories --repository-names $ECR_REPO_NAME \
---region $REGION --query 'repositories[0].repositoryUri' --output text)
-echo "ECR Repository URI: $ECR_URI"
-
-
+# Create IAM roles for ECS tasks
 ROLE_NAME="ecsTaskRole"
 EXECUTION_ROLE_NAME="ecsExecutionRole"
 
-# Create IAM role for ECS task if it doesn't exist
+# Create Task Role if not exists
 echo "Checking if IAM role '$ROLE_NAME' exists..."
 ROLE_CHECK=$(aws iam get-role --role-name $ROLE_NAME --region $REGION --output text 2>/dev/null)
-
 if [ -z "$ROLE_CHECK" ]; then
     echo "Creating IAM role '$ROLE_NAME' for ECS task..."
-    
     TRUST_POLICY=$(cat <<EOF
 {
     "Version": "2012-10-17",
@@ -146,10 +111,9 @@ if [ -z "$ROLE_CHECK" ]; then
 }
 EOF
 )
-
     aws iam create-role --role-name $ROLE_NAME \
-    --assume-role-policy-document file://<(echo "$TRUST_POLICY") \
-    --region $REGION > /dev/null
+        --assume-role-policy-document file://<(echo "$TRUST_POLICY") \
+        --region $REGION > /dev/null
     echo "IAM role '$ROLE_NAME' created."
 else
     echo "IAM role '$ROLE_NAME' already exists."
@@ -188,22 +152,34 @@ aws iam attach-role-policy --role-name $EXECUTION_ROLE_NAME \
     --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy \
     --region $REGION > /dev/null
 
-# Log in to ECR
-echo "Logging in to ECR..."
-aws ecr get-login-password --region $REGION | \
-docker login --username AWS --password-stdin $ECR_URI
+# Build and Push Docker Images
+echo "Building and Pushing Docker Images..."
+for SERVICE in "api" "ui"; do
+    echo "Building $SERVICE image..."
+    docker build -t $SERVICE ./docker/$SERVICE
+    ECR_URI=$(aws ecr describe-repositories --repository-names $SERVICE --region $REGION --query "repositories[0].repositoryUri" --output text 2>/dev/null || aws ecr create-repository --repository-name $SERVICE --region $REGION --query "repository.repositoryUri" --output text)
+    echo "Pushing $SERVICE image to $ECR_URI..."
+    docker tag $SERVICE:latest $ECR_URI:$IMAGE_TAG
+    aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_URI
+    docker push $ECR_URI:$IMAGE_TAG
+done
 
-# Build Docker image
-echo "DOCKER_FILE: $DOCKER_FILE"
-echo "CONTAINER_NAME: $CONTAINER_NAME"
-echo "IMAGE_TAG: $IMAGE_TAG"
-echo "Building Docker image..."
-docker build --pull --rm -f "$DOCKER_FILE" -t $CONTAINER_NAME:$IMAGE_TAG ./$LANGUAGE
+# Copy init.sql to a temporary build context for Postgres
+echo "Preparing Postgres init script..."
+TEMP_DIR=$(mktemp -d)
+cp ./docker/postgres/init.sql $TEMP_DIR/
+cat > $TEMP_DIR/Dockerfile <<EOF
+FROM $POSTGRES_IMAGE
+COPY init.sql /docker-entrypoint-initdb.d/
+EOF
 
-# Tag and push Docker image to ECR
-echo "Tagging and pushing Docker image to ECR..."
-docker tag $CONTAINER_NAME:$IMAGE_TAG $ECR_URI:$IMAGE_TAG
+docker build -t postgres-init $TEMP_DIR
+ECR_URI=$(aws ecr describe-repositories --repository-names postgres --region $REGION --query "repositories[0].repositoryUri" --output text 2>/dev/null || aws ecr create-repository --repository-name postgres --region $REGION --query "repository.repositoryUri" --output text)
+echo "Pushing Postgres image with init script to $ECR_URI..."
+docker tag postgres-init:latest $ECR_URI:$IMAGE_TAG
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_URI
 docker push $ECR_URI:$IMAGE_TAG
+rm -rf $TEMP_DIR
 
 # Create ECS cluster if it doesn't exist
 echo "Checking if ECS cluster '$CLUSTER_NAME' exists..."
@@ -219,110 +195,85 @@ else
     echo "ECS cluster '$CLUSTER_NAME' already exists."
 fi
 
-# Create CloudWatch log group if it doesn't exist
-echo "Checking if CloudWatch log group '$LOG_GROUP_NAME' exists..."
-LOG_GROUP_CHECK=$(aws logs describe-log-groups --log-group-name-prefix $LOG_GROUP_NAME \
---region $REGION --output text --query 'logGroups[0].logGroupName' 2>/dev/null)
-
-if [ -z "$LOG_GROUP_CHECK" ] || [ "$LOG_GROUP_CHECK" == "None" ]; then
-    echo "Creating CloudWatch log group..."
-    aws logs create-log-group --log-group-name $LOG_GROUP_NAME \
-    --region $REGION > /dev/null
-    echo "CloudWatch log group '$LOG_GROUP_NAME' created."
-else
-    echo "CloudWatch log group '$LOG_GROUP_NAME' already exists."
-fi
-
-# Register ECS task definition
-echo "Registering ECS task definition..."
-TASK_DEF_JSON=$(cat <<EOF
+# Task Definition JSON
+echo "Registering ECS Task Definition..."
+cat > task-definition.json <<EOF
 {
     "family": "$TASK_DEFINITION_NAME",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "2048",
+    "memory": "4096",
+    "networkMode": "awsvpc",
     "taskRoleArn": "arn:aws:iam::$ACCOUNT_ID:role/$ROLE_NAME",
     "executionRoleArn": "arn:aws:iam::$ACCOUNT_ID:role/$EXECUTION_ROLE_NAME",
     "containerDefinitions": [
         {
-            "name": "$CONTAINER_NAME",
-            "image": "$ECR_URI:$IMAGE_TAG",
-            "cpu": 1024,
-            "memory": 2048,
+            "name": "postgres",
+            "image": "$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/postgres:$IMAGE_TAG",
             "portMappings": [
                 {
-                    "containerPort": $CONTAINER_PORT,
-                    "hostPort": $HOST_PORT,
-                    "protocol": "tcp"
+                    "containerPort": $POSTGRES_PORT,
+                    "hostPort": $POSTGRES_PORT
                 }
             ],
             "essential": true,
-            "healthCheck": {
-                "retries": 3,
-                "command": [
-                    "CMD-SHELL",
-                    "curl -f http://127.0.0.1:$HOST_PORT/api/health || exit 1"
-                ],
-                "timeout": 5,
-                "interval": 30,
-                "startPeriod": 300
-            },
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-group": "$LOG_GROUP_NAME",
-                    "awslogs-region": "$REGION",
-                    "awslogs-stream-prefix": "ecs"
+            "environment": [
+                {"name": "POSTGRES_USER", "value": "postgres"},
+                {"name": "POSTGRES_PASSWORD", "value": "postgres"},
+                {"name": "POSTGRES_DB", "value": "users"}
+            ]
+        },
+        {
+            "name": "api",
+            "image": "$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/api:$IMAGE_TAG",
+            "portMappings": [
+                {
+                    "containerPort": $API_PORT,
+                    "hostPort": $API_PORT
                 }
-            }
+            ],
+            "essential": true,
+            "dependsOn": [
+                {"containerName": "postgres", "condition": "START"}
+            ]
+        },
+        {
+            "name": "ui",
+            "image": "$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/ui:$IMAGE_TAG",
+            "portMappings": [
+                {
+                    "containerPort": $UI_PORT,
+                    "hostPort": $UI_PORT
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {"name": "VITE_API_URL", "value": "http://api:$API_PORT"}
+            ],
+            "dependsOn": [
+                {"containerName": "api", "condition": "START"}
+            ]
         }
-    ],
-    "requiresCompatibilities": [
-        "FARGATE"
-    ],
-    "cpu": "1024",
-    "memory": "2048",
-    "networkMode": "awsvpc",
-    "runtimePlatform": {
-        "cpuArchitecture": "X86_64",
-        "operatingSystemFamily": "LINUX"
-    }
+    ]
 }
 EOF
-)
+aws ecs register-task-definition --cli-input-json file://task-definition.json --region $REGION > /dev/null
 
-echo "$TASK_DEF_JSON" > task-definition.json
-aws ecs register-task-definition --cli-input-json file://task-definition.json \
---region $REGION > /dev/null
+# Create ECS Service
+echo "Creating ECS Service..."
+aws ecs create-service \
+    --cluster $CLUSTER_NAME \
+    --service-name $SERVICE_NAME \
+    --task-definition $TASK_DEFINITION_NAME \
+    --desired-count 1 \
+    --launch-type FARGATE \
+    --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_ID],securityGroups=[$SECURITY_GROUP_ID],assignPublicIp=ENABLED}" \
+    --region $REGION > /dev/null
 
-# Create ECS service if it doesn't exist
-echo "Checking if ECS service '$SERVICE_NAME' exists..."
-SERVICE_CHECK=$(aws ecs describe-services --cluster $CLUSTER_NAME \
---services $SERVICE_NAME --region $REGION \
---output text --query 'services[0].status' 2>/dev/null)
+# Output Service Information
+echo "Deployment Complete."
 
-if [ "$SERVICE_CHECK" != "ACTIVE" ]; then
-    echo "Creating ECS service..."
-    aws ecs create-service \
-        --cluster $CLUSTER_NAME \
-        --service-name $SERVICE_NAME \
-        --task-definition $TASK_DEFINITION_NAME \
-        --desired-count 1 \
-        --launch-type FARGATE \
-        --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_ID_1],securityGroups=[$SECURITY_GROUP_ID],assignPublicIp=ENABLED}" \
-        --region $REGION > /dev/null
-    echo "ECS service '$SERVICE_NAME' created."
-else
-    echo "ECS service '$SERVICE_NAME' already exists."
-    # Update the service with the new task definition
-    echo "Updating ECS service with new task definition..."
-    aws ecs update-service \
-        --cluster $CLUSTER_NAME \
-        --service $SERVICE_NAME \
-        --task-definition $TASK_DEFINITION_NAME \
-        --region $REGION > /dev/null
-    echo "ECS service '$SERVICE_NAME' updated."
-fi
-
-echo "ECS service and task created successfully."
-
+# Get the Public IP for the UI Service
 echo "Waiting for ECS task to start..."
 MAX_ATTEMPTS=60
 ATTEMPT=0
@@ -377,8 +328,6 @@ if [ "$TASK_STATUS" != "RUNNING" ]; then
     exit 1
 fi
 
-echo "Task ARN: $TASK_ARN"
-
 # Get the ENI attached to the task
 ENI_ID=$(aws ecs describe-tasks --cluster $CLUSTER_NAME \
     --tasks $TASK_ARN \
@@ -402,5 +351,5 @@ if [ "$PUBLIC_IP" == "None" ] || [ -z "$PUBLIC_IP" ]; then
     exit 1
 fi
 
-echo "Public IP Address of Deployed Container: $PUBLIC_IP"
-echo "Health Endpoint: http://$PUBLIC_IP:$HOST_PORT/api/health"
+echo "Public IP Address of UI Service: $PUBLIC_IP"
+echo "UI Endpoint: http://$PUBLIC_IP:$UI_PORT"
