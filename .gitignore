@@ -1,3 +1,4 @@
 # ECS task definition
 task-definition.json
 .vscode
+.env
