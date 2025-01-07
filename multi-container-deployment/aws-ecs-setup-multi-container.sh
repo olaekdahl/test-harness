@@ -197,6 +197,8 @@ API_TARGET_GROUP_ARN=$(aws elbv2 create-target-group \
     --protocol HTTP \
     --port $API_PORT \
     --vpc-id $VPC_ID \
+    --health-check-port "8080" \
+    --health-check-path "/api/health" \
     --target-type ip \
     --region $REGION \
     --query "TargetGroups[0].TargetGroupArn" --output text)
@@ -206,6 +208,8 @@ UI_TARGET_GROUP_ARN=$(aws elbv2 create-target-group \
     --protocol HTTP \
     --port $UI_PORT \
     --vpc-id $VPC_ID \
+    --health-check-port "80" \
+    --health-check-path "/" \
     --target-type ip \
     --region $REGION \
     --query "TargetGroups[0].TargetGroupArn" --output text)

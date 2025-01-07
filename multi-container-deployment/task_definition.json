@@ -1,0 +1,85 @@
+{
+    "family": "ecs-task",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "1024",
+    "memory": "2048",
+    "networkMode": "awsvpc",
+    "taskRoleArn": "arn:aws:iam::397188165174:role/ecsTaskRole",
+    "executionRoleArn": "arn:aws:iam::397188165174:role/ecsExecutionRole",
+    "containerDefinitions": [
+        {
+            "name": "postgres",
+            "image": "397188165174.dkr.ecr.us-west-1.amazonaws.com/postgres:5e3d477",
+            "portMappings": [
+                {
+                    "containerPort": 5432,
+                    "hostPort": 5432
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {"name": "POSTGRES_USER", "value": "postgres"},
+                {"name": "POSTGRES_PASSWORD", "value": "postgres"},
+                {"name": "POSTGRES_DB", "value": "users"}
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/ecs-task",
+                    "awslogs-region": "us-west-1",
+                    "awslogs-stream-prefix": "postgres"
+                }
+            }
+        },
+        {
+            "name": "api",
+            "image": "397188165174.dkr.ecr.us-west-1.amazonaws.com/api:5e3d477",
+            "portMappings": [
+                {
+                    "containerPort": 8080,
+                    "hostPort": 8080
+                }
+            ],
+            "essential": true,
+            "dependsOn": [
+                {
+                    "containerName": "postgres",
+                    "condition": "START"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/ecs-task",
+                    "awslogs-region": "us-west-1",
+                    "awslogs-stream-prefix": "api"
+                }
+            }
+        },
+        {
+            "name": "ui",
+            "image": "397188165174.dkr.ecr.us-west-1.amazonaws.com/ui:5e3d477",
+            "portMappings": [
+                {
+                    "containerPort": 80,
+                    "hostPort": 80
+                }
+            ],
+            "essential": true,
+            "dependsOn": [
+                {
+                    "containerName": "api",
+                    "condition": "START"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/ecs-task",
+                    "awslogs-region": "us-west-1",
+                    "awslogs-stream-prefix": "ui"
+                }
+            }
+        }
+    ]
+}

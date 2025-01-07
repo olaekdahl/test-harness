@@ -22,7 +22,8 @@ public class ApiController : ControllerBase
         return Ok(new
         {
             status = "healthy",
-            message = "Application is running"
+            message = "Application is running",
+            code ="200"
         });
     }
 

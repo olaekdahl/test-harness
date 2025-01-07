@@ -23,7 +23,7 @@ CREATE TABLE users (
 -- Insert initial user data
 INSERT INTO users (name, email) VALUES
 ('Alice Johnson', 'alice.johnson@example.com'),
-('Bob Smith', 'bob.smith@example.com'),
+('Bob Smith1', 'bob.smith@example.com'),
 ('Carol Williams', 'carol.williams@example.com');
 
 -- Create a table for roles
