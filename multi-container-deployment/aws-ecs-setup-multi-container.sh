@@ -11,8 +11,6 @@ EOF
 
 printf "\n\n"
 
-set -e
-
 # Configuration Variables
 REGION="us-west-1"
 CLUSTER_NAME="ecs-cluster"
