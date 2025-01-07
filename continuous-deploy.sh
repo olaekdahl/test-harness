@@ -12,10 +12,10 @@ EOF
 printf "\n\n"
 
 # Set variables
-LANGUAGE="node"
-DOCKER_FILE="Dockerfile.node"
+LANGUAGE="net"
+DOCKER_FILE="Dockerfile.net"
 REGION="us-west-1"
-NAME="node"
+NAME="net"
 CONTAINER_PORT=5000
 HOST_PORT=5000
 
