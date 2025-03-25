@@ -1,0 +1,39 @@
+{
+    "family": "node-task",
+    "taskRoleArn": "arn:aws:iam::397188165174:role/ecsTaskRole",
+    "executionRoleArn": "arn:aws:iam::397188165174:role/ecsTaskExecutionRole",
+    "containerDefinitions": [
+        {
+            "name": "node-test-harness",
+            "image": "397188165174.dkr.ecr.us-west-2.amazonaws.com/node-repository:a4eb3d2",
+            "cpu": 1024,
+            "memory": 2048,
+            "portMappings": [
+                {
+                    "containerPort": 5000,
+                    "hostPort": 5000,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/node",
+                    "awslogs-region": "us-west-2",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            }
+        }
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "1024",
+    "memory": "2048",
+    "networkMode": "awsvpc",
+    "runtimePlatform": {
+        "cpuArchitecture": "X86_64",
+        "operatingSystemFamily": "LINUX"
+    }
+}

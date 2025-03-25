@@ -12,7 +12,7 @@ EOF
 printf "\n\n"
 
 # Set AWS Region
-REGION="us-west-1"
+REGION="us-west-2"
 
 MAX_ATTEMPTS=60
 ATTEMPT=0

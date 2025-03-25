@@ -16,10 +16,10 @@ printf "\n\n"
 # Set variables
 
 # python, net, java, or node
-LANGUAGE="net"
-DOCKER_FILE="Dockerfile.net"
-REGION="us-west-1"
-NAME="net"
+LANGUAGE="node"
+DOCKER_FILE="Dockerfile.node"
+REGION="us-west-2"
+NAME="node"
 CONTAINER_PORT=5000
 HOST_PORT=5000
 
